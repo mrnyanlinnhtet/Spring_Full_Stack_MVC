@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:security="http://www.springframework.org/schema/security"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/security http://www.springframework.org/schema/security/spring-security.xsd">
+
+<context:component-scan base-package="com.security.root"></context:component-scan>
+
+<!-- Simple Jdbc Insert -->
+<bean id="insert" class="org.springframework.jdbc.core.simple.SimpleJdbcInsert">
+ <constructor-arg ref="dataSource"/>
+ <property name="tableName" value="users"></property>
+</bean>
+
+<!-- Data Soruce for db -->
+<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource">
+  <property name="url" value="jdbc:mysql://localhost:3306/auth_jdc_db"/>
+  <property name="username" value="root"/>
+  <property name="password" value="admin"/>
+ </bean>
+ 
+ <!-- Endcoder Bean for password -->
+ <bean id="bcryptEncoder" class="org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder"/>
+
+<!-- Auth Manager -->
+ <security:authentication-manager id="authManager">
+ 
+ <!-- In Memory for admin user Provider -->
+ <security:authentication-provider>
+ <security:user-service>
+ <security:user name="admin" authorities="Admin" password="{noop}admin"/>
+ </security:user-service>
+ </security:authentication-provider>
+ 
+ <!-- Auth Provider for db -->
+ <security:authentication-provider>
+  <security:password-encoder hash="bcrypt" ref="bcryptEncoder"/>
+  <security:jdbc-user-service data-source-ref="dataSource"
+  users-by-username-query="SELECT login,password,valid FROM users WHERE login = ?"
+  authorities-by-username-query="SELECT login,role FROM users WHERE login = ?"
+ />
+ </security:authentication-provider>
+ </security:authentication-manager>
+ 
+ <!-- For Http Security -->
+  <security:http authentication-manager-ref="authManager">
+   <security:csrf  disabled="true"/>
+   
+   <!-- Set Authority -->
+   <security:intercept-url access="hasAuthority('Admin')" pattern="/admin/**"/>
+   <security:intercept-url access="hasAnyAuthority('Admin','Member')" pattern="/member/**"/>
+   
+  <!-- For Login -->
+  <security:form-login login-page="/views/signin.jsp"
+   login-processing-url="/signin"
+    username-parameter="loginId" 
+    password-parameter="password"/>
+    
+    <!-- For Logout -->
+    <security:logout invalidate-session="true" 
+    logout-url="/signout"  
+    logout-success-url="/"/>
+    
+  </security:http>
+
+</beans>
